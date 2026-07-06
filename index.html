@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SPOOL — video library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
+<style>
+  :root{
+    --bg: #17171a;
+    --panel: #1f1f23;
+    --panel-2: #26262c;
+    --border: #35353d;
+    --border-soft: #2a2a30;
+    --text: #eeeae2;
+    --text-dim: #9b9893;
+    --text-faint: #6c6a67;
+    --amber: #e8a33d;
+    --amber-dim: #8a6427;
+    --teal: #3ecfc0;
+    --red: #e2694b;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --radius: 3px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  ::selection{ background: var(--amber); color: #17171a; }
+
+  a{ color: var(--teal); }
+
+  /* --- sprocket strip, the signature motif: film-edge perforations that run the width of the header and footer --- */
+  .sprocket-strip{
+    height: 14px;
+    width: 100%;
+    background-image: radial-gradient(circle, var(--bg) 2.5px, transparent 2.6px);
+    background-size: 22px 14px;
+    background-position: 11px center;
+    background-color: var(--panel-2);
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  header{ background: var(--panel-2); }
+
+  .topbar{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 18px 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .wordmark{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    color: var(--text);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .wordmark span{
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--amber);
+    letter-spacing: 0.1em;
+  }
+
+  .search-wrap{
+    flex: 1 1 260px;
+    position: relative;
+    min-width: 200px;
+  }
+  .search-wrap input{
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 10px 14px 10px 34px;
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  .search-wrap input:focus{ border-color: var(--amber); }
+  .search-wrap svg{
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint); pointer-events: none;
+  }
+
+  .btn{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, color .15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover{ border-color: var(--text-dim); }
+  .btn-primary{
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #1a1305;
+    font-weight: 500;
+  }
+  .btn-primary:hover{ background: #f0ad4d; border-color: #f0ad4d; }
+  .btn-ghost{ border-color: transparent; color: var(--text-dim); }
+  .btn-ghost:hover{ color: var(--text); }
+
+  .conn-indicator{
+    display:flex; align-items:center; gap:7px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-faint);
+    cursor:pointer;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+  }
+  .conn-indicator:hover{ border-color: var(--border); }
+  .dot{ width:7px; height:7px; border-radius:50%; background: var(--text-faint); flex-shrink:0; }
+  .dot.ok{ background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+  .dot.bad{ background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  .settings-pop{
+    position: absolute; right: 24px; top: 64px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; width: 300px;
+    z-index: 50; box-shadow: 0 12px 30px rgba(0,0,0,.4);
+    display: none;
+  }
+  .settings-pop.open{ display: block; }
+  .settings-pop label{ font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+  .settings-pop input{
+    width: 100%; margin-top: 6px; margin-bottom: 12px;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 10px; border-radius: var(--radius); font-family: var(--font-mono); font-size: 13px;
+    outline: none;
+  }
+  .settings-pop input:focus{ border-color: var(--amber); }
+
+  .filter-row{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 16px 24px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .filter-label{
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: .08em; margin-right: 2px;
+  }
+  .chip{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .chip:hover{ border-color: var(--text-dim); color: var(--text); }
+  .chip.active{ background: var(--teal); border-color: var(--teal); color: #0d221f; font-weight: 500; }
+  .chip.clear{ color: var(--red); border-color: transparent; }
+
+  main{ max-width: 1180px; margin: 0 auto; padding: 24px; }
+
+  .meta-row{
+    display:flex; justify-content: space-between; align-items:center;
+    margin-bottom: 16px; font-family: var(--font-mono); font-size: 12px; color: var(--text-faint);
+  }
+
+  .grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .card:hover{ border-color: var(--amber-dim); transform: translateY(-2px); }
+
+  .thumb{
+    aspect-ratio: 16/9;
+    background: #0f0f11;
+    position: relative;
+    display:flex; align-items:center; justify-content:center;
+    overflow: hidden;
+  }
+  .thumb img{ width:100%; height:100%; object-fit: cover; display:block; }
+  .thumb .fallback{ color: var(--text-faint); font-family: var(--font-mono); font-size: 11px; text-align:center; padding: 10px;}
+  .thumb .fallback svg{ display:block; margin: 0 auto 6px; opacity: .5; }
+
+  .badge{
+    position: absolute; top: 8px; left: 8px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em;
+    padding: 3px 8px; border-radius: 2px; text-transform: uppercase;
+    display:flex; align-items:center; gap:5px;
+  }
+  .badge.processing{ background: rgba(232,163,61,.15); color: var(--amber); border: 1px solid rgba(232,163,61,.4); }
+  .badge.ready{ background: rgba(62,207,192,.12); color: var(--teal); border: 1px solid rgba(62,207,192,.35); }
+  .badge.failed{ background: rgba(226,105,75,.14); color: var(--red); border: 1px solid rgba(226,105,75,.4); }
+  .badge .spin{ width:7px; height:7px; border-radius:50%; border: 1.5px solid var(--amber); border-top-color: transparent; animation: spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .play-hint{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background: rgba(0,0,0,0); transition: background .15s ease;
+  }
+  .card:hover .play-hint{ background: rgba(0,0,0,.15); }
+  .play-hint svg{ opacity:0; transition: opacity .15s ease; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+  .card:hover .play-hint svg{ opacity: 1; }
+
+  .card-body{ padding: 12px 14px 14px; }
+  .card-title{ font-family: var(--font-body); font-weight: 600; font-size: 14px; margin: 0 0 8px; color: var(--text); line-height:1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 8px; }
+  .tag-pill{
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    background: var(--panel-2); border: 1px solid var(--border-soft);
+    padding: 2px 8px; border-radius: 20px;
+  }
+  .card-date{ font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); }
+
+  .empty{
+    text-align: center; padding: 80px 20px; color: var(--text-faint);
+  }
+  .empty svg{ margin-bottom: 16px; opacity: .4; }
+  .empty h3{ font-family: var(--font-display); color: var(--text-dim); font-weight: 600; margin: 0 0 6px; }
+  .empty p{ font-size: 13px; margin: 0; }
+
+  /* modal shared */
+  .overlay{
+    position: fixed; inset: 0; background: rgba(10,10,11,.82);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+    padding: 24px;
+  }
+  .overlay.open{ display: flex; }
+
+  .modal{
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); width: 100%;
+    display:flex; flex-direction:column;
+    max-height: 90vh;
+  }
+  .modal-player{ max-width: 920px; }
+  .modal-upload{ max-width: 460px; }
+
+  .modal-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border-soft);
+  }
+  .modal-head h3{ font-family: var(--font-display); font-size: 15px; margin:0; color: var(--text); font-weight:600; }
+  .modal-close{ background:none; border:none; color: var(--text-faint); cursor:pointer; padding:4px; }
+  .modal-close:hover{ color: var(--text); }
+
+  .modal-body{ padding: 18px; overflow-y:auto; }
+
+  .video-frame{ background:#000; aspect-ratio: 16/9; width:100%; }
+  .video-frame video{ width:100%; height:100%; display:block; }
+  .video-meta{ padding-top: 14px; }
+  .video-meta .tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .video-status-line{ font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+  .field{ margin-bottom: 14px; }
+  .field label{ display:block; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); margin-bottom: 6px; }
+  .field input[type=text]{
+    width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 12px; border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; outline:none;
+  }
+  .field input[type=text]:focus{ border-color: var(--amber); }
+  .dropzone{
+    border: 1.5px dashed var(--border); border-radius: var(--radius);
+    padding: 24px 16px; text-align:center; cursor:pointer;
+    color: var(--text-faint); font-size: 13px; transition: border-color .15s ease, color .15s ease;
+  }
+  .dropzone:hover, .dropzone.drag{ border-color: var(--amber); color: var(--text-dim); }
+  .dropzone svg{ display:block; margin: 0 auto 8px; }
+  .dropzone .filename{ color: var(--teal); font-family: var(--font-mono); font-size: 12px; margin-top: 6px; word-break: break-all; }
+  .hint{ font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); margin-top: 6px; }
+
+  .modal-foot{ padding: 14px 18px; border-top: 1px solid var(--border-soft); display:flex; justify-content:flex-end; gap: 10px; }
+
+  .toast-stack{ position: fixed; bottom: 20px; right: 20px; z-index: 200; display:flex; flex-direction:column; gap:8px; }
+  .toast{
+    font-family: var(--font-mono); font-size: 12.5px; padding: 12px 16px; border-radius: var(--radius);
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 320px;
+    animation: toast-in .2s ease;
+  }
+  .toast.err{ border-color: rgba(226,105,75,.5); color: #f3a691; }
+  .toast.ok{ border-color: rgba(62,207,192,.4); color: var(--teal); }
+  @keyframes toast-in{ from{ opacity:0; transform: translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  footer{ margin-top: 40px; }
+  .foot-note{
+    max-width: 1180px; margin: 0 auto; padding: 16px 24px 28px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-faint);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="sprocket-strip"></div>
+  <div class="topbar">
+    <div class="wordmark">SPOOL <span>/// HLS LIBRARY</span></div>
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" type="text" placeholder="Search titles…" autocomplete="off" />
+    </div>
+    <button class="btn btn-primary" id="openUploadBtn">+ Upload video</button>
+    <div class="conn-indicator" id="connIndicator" title="Backend connection settings">
+      <span class="dot" id="connDot"></span>
+      <span id="connLabel">not connected</span>
+    </div>
+  </div>
+  <div class="sprocket-strip"></div>
+
+  <div class="settings-pop" id="settingsPop">
+    <label for="baseUrlInput">Backend URL</label>
+    <input id="baseUrlInput" type="text" value="http://localhost:3000" spellcheck="false" />
+    <button class="btn btn-primary" style="width:100%" id="connectBtn">Connect</button>
+  </div>
+</header>
+
+<div class="filter-row" id="filterRow" style="display:none;">
+  <span class="filter-label">Filter by tag</span>
+  <div id="tagChips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+</div>
+
+<main>
+  <div class="meta-row">
+    <span id="resultCount"></span>
+    <span id="pollNote"></span>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="emptyState" style="display:none;">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>
+    <h3 id="emptyTitle">No videos yet</h3>
+    <p id="emptyBody">Upload your first MP4 to get started.</p>
+  </div>
+</main>
+
+<footer>
+  <div class="sprocket-strip"></div>
+  <div class="foot-note">
+    <span>Talks directly to your Hono HLS backend — /videos, /videos/:id, thumbnails, and playlists.</span>
+    <span id="healthNote">—</span>
+  </div>
+</footer>
+
+<!-- Player modal -->
+<div class="overlay" id="playerOverlay">
+  <div class="modal modal-player">
+    <div class="modal-head">
+      <h3 id="playerTitle">Video</h3>
+      <button class="modal-close" id="playerClose">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="video-frame"><video id="videoEl" controls playsinline></video></div>
+      <div class="video-meta">
+        <div class="video-status-line" id="playerStatusLine"></div>
+        <div class="tags" id="playerTags"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload modal -->
+<div class="overlay" id="uploadOverlay">
+  <div class="modal modal-upload">
+    <div class="modal-head">
+      <h3>Upload video</h3>
+      <button class="modal-close" id="uploadClose">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>MP4 file</label>
+        <div class="dropzone" id="dropzone">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <span id="dropzoneLabel">Click to choose a file, or drag one here</span>
+          <div class="filename" id="dropzoneFilename"></div>
+        </div>
+        <input type="file" id="fileInput" accept="video/mp4,.mp4" style="display:none" />
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="titleInput" placeholder="Untitled video" />
+      </div>
+      <div class="field">
+        <label>Tags</label>
+        <input type="text" id="tagsInput" placeholder="comma, separated, tags" />
+        <div class="hint">e.g. travel, japan, 2026</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="uploadCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="uploadSubmitBtn">Upload</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+(function(){
+  let baseUrl = localStorageSafeDefault();
+  let videos = [];
+  let activeTags = new Set();
+  let searchQuery = '';
+  let pollTimer = null;
+  let hls = null;
+
+  function localStorageSafeDefault(){ return 'http://localhost:3000'; }
+
+  // ---------- DOM refs ----------
+  const $ = (id) => document.getElementById(id);
+  const grid = $('grid');
+  const emptyState = $('emptyState');
+  const emptyTitle = $('emptyTitle');
+  const emptyBody = $('emptyBody');
+  const resultCount = $('resultCount');
+  const pollNote = $('pollNote');
+  const tagChips = $('tagChips');
+  const filterRow = $('filterRow');
+  const searchInput = $('searchInput');
+  const connIndicator = $('connIndicator');
+  const connDot = $('connDot');
+  const connLabel = $('connLabel');
+  const settingsPop = $('settingsPop');
+  const baseUrlInput = $('baseUrlInput');
+  const connectBtn = $('connectBtn');
+  const healthNote = $('healthNote');
+  const toastStack = $('toastStack');
+
+  baseUrlInput.value = baseUrl;
+
+  // ---------- toast ----------
+  function toast(message, kind){
+    const el = document.createElement('div');
+    el.className = 'toast' + (kind ? ' ' + kind : '');
+    el.textContent = message;
+    toastStack.appendChild(el);
+    setTimeout(() => el.remove(), 4200);
+  }
+
+  // ---------- connection ----------
+  connIndicator.addEventListener('click', () => settingsPop.classList.toggle('open'));
+  document.addEventListener('click', (e) => {
+    if (!settingsPop.contains(e.target) && !connIndicator.contains(e.target)) settingsPop.classList.remove('open');
+  });
+
+  connectBtn.addEventListener('click', () => {
+    const v = baseUrlInput.value.trim().replace(/\/+$/, '');
+    if (!v) return;
+    baseUrl = v;
+    settingsPop.classList.remove('open');
+    checkHealth();
+    loadVideos();
+  });
+
+  async function checkHealth(){
+    try{
+      const res = await fetch(baseUrl + '/health');
+      if (!res.ok) throw new Error('bad status');
+      connDot.className = 'dot ok';
+      connLabel.textContent = 'connected';
+      healthNote.textContent = baseUrl;
+    }catch(e){
+      connDot.className = 'dot bad';
+      connLabel.textContent = 'unreachable';
+      healthNote.textContent = 'could not reach ' + baseUrl;
+    }
+  }
+
+  // ---------- data loading ----------
+  async function loadVideos(silent){
+    try{
+      const res = await fetch(baseUrl + '/videos');
+      if (!res.ok) throw new Error('Failed to load videos (' + res.status + ')');
+      videos = await res.json();
+      connDot.className = 'dot ok';
+      connLabel.textContent = 'connected';
+      renderTagChips();
+      render();
+      manageProcessingPoll();
+    }catch(e){
+      if (!silent) toast('Could not load videos — ' + e.message, 'err');
+      connDot.className = 'dot bad';
+      connLabel.textContent = 'unreachable';
+    }
+  }
+
+  function manageProcessingPoll(){
+    const anyProcessing = videos.some(v => v.status === 'processing');
+    pollNote.textContent = anyProcessing ? 'watching processing videos…' : '';
+    if (anyProcessing && !pollTimer){
+      pollTimer = setInterval(() => loadVideos(true), 3500);
+    } else if (!anyProcessing && pollTimer){
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  // ---------- tag filter chips ----------
+  function allTags(){
+    const s = new Set();
+    videos.forEach(v => (v.tags || []).forEach(t => s.add(t)));
+    return Array.from(s).sort();
+  }
+
+  function renderTagChips(){
+    const tags = allTags();
+    filterRow.style.display = tags.length ? 'flex' : 'none';
+    tagChips.innerHTML = '';
+    tags.forEach(tag => {
+      const chip = document.createElement('button');
+      chip.className = 'chip' + (activeTags.has(tag) ? ' active' : '');
+      chip.textContent = tag;
+      chip.addEventListener('click', () => {
+        if (activeTags.has(tag)) activeTags.delete(tag); else activeTags.add(tag);
+        renderTagChips();
+        render();
+      });
+      tagChips.appendChild(chip);
+    });
+    if (activeTags.size){
+      const clear = document.createElement('button');
+      clear.className = 'chip clear';
+      clear.textContent = 'Clear filters ×';
+      clear.addEventListener('click', () => { activeTags.clear(); renderTagChips(); render(); });
+      tagChips.appendChild(clear);
+    }
+  }
+
+  // ---------- search ----------
+  searchInput.addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim().toLowerCase();
+    render();
+  });
+
+  function filteredVideos(){
+    return videos.filter(v => {
+      const matchesSearch = !searchQuery || v.title.toLowerCase().includes(searchQuery);
+      const matchesTags = activeTags.size === 0 || (v.tags || []).some(t => activeTags.has(t));
+      return matchesSearch && matchesTags;
+    });
+  }
+
+  // ---------- rendering ----------
+  function statusBadge(status){
+    if (status === 'processing') return '<span class="badge processing"><span class="spin"></span>processing</span>';
+    if (status === 'failed') return '<span class="badge failed">failed</span>';
+    return '<span class="badge ready">ready</span>';
+  }
+
+  function formatDate(iso){
+    try{
+      const d = new Date(iso.replace(' ', 'T') + (iso.includes('Z') ? '' : 'Z'));
+      return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+    }catch(e){ return iso; }
+  }
+
+  function render(){
+    const list = filteredVideos();
+    resultCount.textContent = list.length + (list.length === 1 ? ' video' : ' videos');
+    grid.innerHTML = '';
+
+    if (videos.length === 0){
+      emptyState.style.display = 'block';
+      emptyTitle.textContent = connLabel.textContent === 'connected' ? 'No videos yet' : 'Not connected';
+      emptyBody.textContent = connLabel.textContent === 'connected'
+        ? 'Upload your first MP4 to get started.'
+        : 'Set your backend URL using the indicator in the top right.';
+      grid.style.display = 'none';
+      return;
+    }
+    if (list.length === 0){
+      emptyState.style.display = 'block';
+      emptyTitle.textContent = 'No matches';
+      emptyBody.textContent = 'Try a different search term or clear tag filters.';
+      grid.style.display = 'none';
+      return;
+    }
+    emptyState.style.display = 'none';
+    grid.style.display = 'grid';
+
+    list.forEach(v => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const thumbInner = v.thumbnailUrl
+        ? `<img src="${baseUrl}${v.thumbnailUrl}" alt="" loading="lazy" />`
+        : `<div class="fallback"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>${v.status === 'failed' ? 'processing failed' : 'no preview yet'}</div>`;
+
+      card.innerHTML = `
+        <div class="thumb">
+          ${thumbInner}
+          ${statusBadge(v.status)}
+          <div class="play-hint">
+            <svg width="46" height="46" viewBox="0 0 24 24" fill="rgba(255,255,255,0.92)"><circle cx="12" cy="12" r="11" fill="rgba(15,15,17,0.55)"/><path d="M10 8l6 4-6 4z" /></svg>
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="card-title">${escapeHtml(v.title)}</p>
+          <div class="card-tags">${(v.tags||[]).map(t => `<span class="tag-pill">${escapeHtml(t)}</span>`).join('')}</div>
+          <div class="card-date">${formatDate(v.createdAt)}</div>
+        </div>
+      `;
+
+      card.addEventListener('click', () => openPlayer(v));
+      grid.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- player modal ----------
+  const playerOverlay = $('playerOverlay');
+  const playerTitle = $('playerTitle');
+  const playerStatusLine = $('playerStatusLine');
+  const playerTags = $('playerTags');
+  const videoEl = $('videoEl');
+
+  async function openPlayer(v){
+    playerOverlay.classList.add('open');
+    playerTitle.textContent = v.title;
+    playerTags.innerHTML = (v.tags||[]).map(t => `<span class="tag-pill">${escapeHtml(t)}</span>`).join('');
+
+    if (v.status !== 'ready' || !v.manifestUrl){
+      playerStatusLine.textContent = v.status === 'processing'
+        ? 'Still transcoding on the server — check back shortly.'
+        : v.status === 'failed'
+          ? 'Processing failed on the server' + (v.errorMessage ? ': ' + v.errorMessage : '.')
+          : 'No playable stream yet.';
+      videoEl.removeAttribute('src');
+      return;
+    }
+    playerStatusLine.textContent = '';
+
+    const src = baseUrl + v.manifestUrl;
+    if (hls){ hls.destroy(); hls = null; }
+
+    if (window.Hls && window.Hls.isSupported()){
+      hls = new Hls();
+      hls.loadSource(src);
+      hls.attachMedia(videoEl);
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) toast('Playback error: ' + data.type, 'err');
+      });
+    } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')){
+      videoEl.src = src;
+    } else {
+      playerStatusLine.textContent = 'This browser cannot play HLS streams.';
+      return;
+    }
+    videoEl.play().catch(() => {});
+  }
+
+  function closePlayer(){
+    playerOverlay.classList.remove('open');
+    videoEl.pause();
+    videoEl.removeAttribute('src');
+    videoEl.load();
+    if (hls){ hls.destroy(); hls = null; }
+  }
+  $('playerClose').addEventListener('click', closePlayer);
+  playerOverlay.addEventListener('click', (e) => { if (e.target === playerOverlay) closePlayer(); });
+
+  // ---------- upload modal ----------
+  const uploadOverlay = $('uploadOverlay');
+  const dropzone = $('dropzone');
+  const dropzoneLabel = $('dropzoneLabel');
+  const dropzoneFilename = $('dropzoneFilename');
+  const fileInput = $('fileInput');
+  const titleInput = $('titleInput');
+  const tagsInput = $('tagsInput');
+  let selectedFile = null;
+
+  function openUpload(){
+    uploadOverlay.classList.add('open');
+  }
+  function closeUpload(){
+    uploadOverlay.classList.remove('open');
+    selectedFile = null;
+    fileInput.value = '';
+    dropzoneFilename.textContent = '';
+    dropzoneLabel.textContent = 'Click to choose a file, or drag one here';
+    titleInput.value = '';
+    tagsInput.value = '';
+  }
+  $('openUploadBtn').addEventListener('click', openUpload);
+  $('uploadClose').addEventListener('click', closeUpload);
+  $('uploadCancelBtn').addEventListener('click', closeUpload);
+  uploadOverlay.addEventListener('click', (e) => { if (e.target === uploadOverlay) closeUpload(); });
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) setSelectedFile(fileInput.files[0]);
+  });
+  ['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', (e) => {
+    const f = e.dataTransfer.files[0];
+    if (f) setSelectedFile(f);
+  });
+
+  function setSelectedFile(f){
+    selectedFile = f;
+    dropzoneFilename.textContent = f.name;
+    dropzoneLabel.textContent = 'Selected:';
+    if (!titleInput.value) titleInput.value = f.name.replace(/\.mp4$/i, '');
+  }
+
+  $('uploadSubmitBtn').addEventListener('click', async () => {
+    if (!selectedFile){ toast('Choose an MP4 file first', 'err'); return; }
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    fd.append('title', titleInput.value.trim() || selectedFile.name.replace(/\.mp4$/i, ''));
+    fd.append('tags', tagsInput.value.trim());
+
+    const submitBtn = $('uploadSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading…';
+    try{
+      const res = await fetch(baseUrl + '/videos', { method: 'POST', body: fd });
+      if (!res.ok){
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || ('Upload failed (' + res.status + ')'));
+      }
+      toast('Upload received — processing on the server.', 'ok');
+      closeUpload();
+      loadVideos();
+    }catch(e){
+      toast(e.message, 'err');
+    }finally{
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Upload';
+    }
+  });
+
+  // ---------- init ----------
+  checkHealth().then(loadVideos);
+})();
+</script>
+</body>
+</html>
