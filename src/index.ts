@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -138,7 +138,7 @@ async function processVideo(id: string, inputPath: string, outputDir: string, th
   }
 }
 
-async function sendFile(c: Parameters<Parameters<typeof app.get>[1]>[0], filePath: string, contentType: string) {
+async function sendFile(c: Context, filePath: string, contentType: string) {
   try {
     const data = await fs.readFile(filePath);
     c.header('Content-Type', contentType);
